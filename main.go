@@ -28,10 +28,17 @@ CREATE TABLE T1 (
 
 var query = "INSERT INTO jiajzhou.T1 (id) VALUES (?)"
 
-func sendRequest(db *sql.DB) {
+func sendRequest(db *sql.DB, autoInc bool) {
 	currentOps := atomic.AddUint32(&ops, 1)
 
-	_, err := db.Exec(query, currentOps)
+	var value int32
+	if autoInc {
+		value = 0
+	} else {
+		value = (int32)(currentOps)
+	}
+
+	_, err := db.Exec(query, value)
 
 	if err != nil {
 		log.Println("err", err)
@@ -124,7 +131,7 @@ func main() {
 			for {
 				<-bucket
 
-				sendRequest(db)
+				sendRequest(db, *autoInc)
 			}
 		}()
 	}
