@@ -12,7 +12,20 @@ import (
 
 var ops uint32
 
-var cleanup = "TRUNCATE TABLE jiajzhou.T1"
+var cleanup = "DROP TABLE IF EXISTS jiajzhou.T1"
+var create1 = `
+CREATE TABLE T1 (
+	id bigint(20) NOT NULL,
+	PRIMARY KEY (id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+`
+var create2 = `
+CREATE TABLE T1 (
+	id bigint(20) NOT NULL AUTO_INCREMENT,
+	PRIMARY KEY (id)
+) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+`
+
 var query = "INSERT INTO jiajzhou.T1 (id) VALUES (?)"
 
 func sendRequest(db *sql.DB) {
@@ -33,12 +46,17 @@ func main() {
 	concurrency := flag.Int("concurrency", 10, "Concurent connection to the server")
 	maxQPS := flag.Int("maxQPS", 100, "Maximum QPS the client will generate")
 	url := flag.String("url", "", "DB url")
+	start := flag.Int("startId", 0, "Starting Id")
+	autoInc := flag.Bool("autoInc", false, "Use auto inc table")
 
 	flag.Parse()
+
+	ops = (uint32)(*start)
 
 	log.Printf("Current concurrency: %d\n", *concurrency)
 	log.Printf("Current max QPS: %d\n", *maxQPS)
 	log.Printf("Testing agains: %s\n", *url)
+	log.Printf("Starting id: %d\n", ops)
 
 	fin := make(chan bool)
 	bucket := make(chan bool, *maxQPS)
@@ -76,6 +94,18 @@ func main() {
 	db.SetMaxIdleConns(1000)
 
 	if _, err := db.Exec(cleanup); err != nil {
+		log.Fatal(err)
+		panic(err)
+	}
+
+	var create string
+	if *autoInc {
+		create = create2
+	} else {
+		create = create1
+	}
+
+	if _, err := db.Exec(create); err != nil {
 		log.Fatal(err)
 		panic(err)
 	}
