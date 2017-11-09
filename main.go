@@ -48,6 +48,7 @@ func main() {
 	url := flag.String("url", "", "DB url")
 	start := flag.Int("startId", 0, "Starting Id")
 	autoInc := flag.Bool("autoInc", false, "Use auto inc table")
+	conn := flag.Int("conn", 100, "Max conn count")
 
 	flag.Parse()
 
@@ -57,6 +58,8 @@ func main() {
 	log.Printf("Current max QPS: %d\n", *maxQPS)
 	log.Printf("Testing agains: %s\n", *url)
 	log.Printf("Starting id: %d\n", ops)
+	log.Printf("AutoInc: %v\n", *autoInc)
+	log.Printf("MaxConn: %d\n", *conn)
 
 	fin := make(chan bool)
 	bucket := make(chan bool, *maxQPS)
@@ -90,8 +93,8 @@ func main() {
 		panic(err)
 	}
 
-	db.SetMaxOpenConns(1000)
-	db.SetMaxIdleConns(1000)
+	db.SetMaxOpenConns(*conn)
+	db.SetMaxIdleConns(*conn)
 
 	if _, err := db.Exec(cleanup); err != nil {
 		log.Fatal(err)
