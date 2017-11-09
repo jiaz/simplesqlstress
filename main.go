@@ -31,11 +31,11 @@ var query = "INSERT INTO jiajzhou.T1 (id) VALUES (?)"
 func sendRequest(db *sql.DB, autoInc bool) {
 	currentOps := atomic.AddUint32(&ops, 1)
 
-	var value int32
+	var value sql.NullInt64
 	if autoInc {
-		value = 0
+		value = sql.NullInt64{}
 	} else {
-		value = (int32)(currentOps)
+		value = sql.NullInt64{Int64: (int64)(currentOps), Valid: true}
 	}
 
 	_, err := db.Exec(query, value)
