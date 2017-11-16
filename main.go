@@ -3,42 +3,50 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"fmt"
 	"log"
 	"sync/atomic"
 	"time"
+
+	"github.com/satori/go.uuid"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 var ops uint32
 
-var cleanup = "DROP TABLE IF EXISTS jiajzhou.T1"
-var create1 = `
-CREATE TABLE T1 (
-	id bigint(20) NOT NULL,
-	PRIMARY KEY (id)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-`
-var create2 = `
-CREATE TABLE T1 (
-	id bigint(20) NOT NULL AUTO_INCREMENT,
-	PRIMARY KEY (id)
-) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+var cleanup = "DROP TABLE IF EXISTS jiajzhou.eievents"
+var create = `
+CREATE TABLE jiajzhou.eievents (
+	EVENT_ID varchar(64) COLLATE utf8_bin NOT NULL,
+	INSERT_DATE datetime(3) NOT NULL,
+	PRIMARY KEY (EVENT_ID,INSERT_DATE)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin
+  PARTITION BY RANGE  COLUMNS(INSERT_DATE)
+  (
+	PARTITION EIEVENTS_20171115 VALUES LESS THAN ('2017-11-15'),
+	PARTITION EIEVENTS_20171116 VALUES LESS THAN ('2017-11-16'),
+	PARTITION EIEVENTS_20171117 VALUES LESS THAN ('2017-11-17')
+  )
 `
 
-var query = "INSERT INTO jiajzhou.T1 (id) VALUES (?)"
+var query = "INSERT INTO jiajzhou.eievents (EVENT_ID, INSERT_DATE) VALUES (?, ?)"
+
+func generateID() string {
+	u1 := uuid.NewV4()
+	t := time.Now()
+
+	return fmt.Sprintf("%d%d%d%d%d%d-%s", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), u1)
+}
 
 func sendRequest(db *sql.DB, autoInc bool) {
 	currentOps := atomic.AddUint32(&ops, 1)
 
-	var value sql.NullInt64
-	if autoInc {
-		value = sql.NullInt64{}
-	} else {
-		value = sql.NullInt64{Int64: (int64)(currentOps), Valid: true}
-	}
+	var id = generateID()
 
-	_, err := db.Exec(query, value)
+	log.Printf("generated id: %s\n", id)
+
+	_, err := db.Exec(query, id, time.Now().String())
 
 	if err != nil {
 		log.Println("err", err)
@@ -106,13 +114,6 @@ func main() {
 	if _, err := db.Exec(cleanup); err != nil {
 		log.Fatal(err)
 		panic(err)
-	}
-
-	var create string
-	if *autoInc {
-		create = create2
-	} else {
-		create = create1
 	}
 
 	if _, err := db.Exec(create); err != nil {
